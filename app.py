@@ -27,8 +27,8 @@ st.set_page_config(
 st.title("💳 Credit Card Fraud Detection System")
 
 st.write(
-    "Machine Learning based system for detecting potentially fraudulent "
-    "credit card transactions."
+    "Machine Learning based system for detecting potentially "
+    "fraudulent credit card transactions."
 )
 
 st.divider()
@@ -40,14 +40,14 @@ st.divider()
 
 @st.cache_data
 def load_data():
-    return pd.read_csv("creditcard_data.csv")
+    return pd.read_csv("creditcard_data_small.csv")
 
 
 df = load_data()
 
 
 # --------------------------------------------------
-# DATASET INFORMATION
+# DATASET OVERVIEW
 # --------------------------------------------------
 
 total_transactions = len(df)
@@ -62,10 +62,6 @@ fraud_percentage = (
     fraud_transactions / total_transactions
 ) * 100
 
-
-# --------------------------------------------------
-# DASHBOARD METRICS
-# --------------------------------------------------
 
 st.subheader("📊 Dataset Overview")
 
@@ -139,7 +135,9 @@ def train_model(X, y):
         y_train
     )
 
-    predictions = model.predict(X_test)
+    predictions = model.predict(
+        X_test
+    )
 
     accuracy = accuracy_score(
         y_test,
@@ -161,14 +159,12 @@ st.subheader("🤖 Machine Learning Model")
 model_col1, model_col2 = st.columns(2)
 
 with model_col1:
-
     st.metric(
         "Model",
         "Logistic Regression"
     )
 
 with model_col2:
-
     st.metric(
         "Accuracy",
         f"{accuracy * 100:.2f}%"
@@ -188,27 +184,32 @@ st.write(
     "Enter the transaction details below."
 )
 
-
 input_col1, input_col2 = st.columns(2)
 
 
+# --------------------------------------------------
+# TIME INPUT
+# --------------------------------------------------
+
 with input_col1:
 
-    time = st.number_input(
+    time_input = st.text_input(
         "Transaction Time",
-        min_value=0.0,
-        value=100.0,
-        step=1.0
+        value="100",
+        placeholder="Enter time value"
     )
 
 
+# --------------------------------------------------
+# AMOUNT INPUT
+# --------------------------------------------------
+
 with input_col2:
 
-    amount = st.number_input(
+    amount_input = st.text_input(
         "Transaction Amount",
-        min_value=0.0,
-        value=100.0,
-        step=1.0
+        value="100",
+        placeholder="Enter amount"
     )
 
 
@@ -227,73 +228,101 @@ check_button = st.button(
 
 if check_button:
 
-    input_data = X.drop(
-        columns=["Time", "Amount"]
-    ).mean().to_frame().T
+    try:
+
+        time = float(time_input)
+        amount = float(amount_input)
+
+        if time < 0:
+            st.error("❌ Transaction Time cannot be negative.")
+
+        elif amount < 0:
+            st.error("❌ Transaction Amount cannot be negative.")
+
+        else:
+
+            # Create input using average values
+            # for V1-V28
+            input_data = X.drop(
+                columns=["Time", "Amount"]
+            ).mean().to_frame().T
 
 
-    input_data.insert(
-        0,
-        "Time",
-        time
-    )
+            # Add Time
+            input_data.insert(
+                0,
+                "Time",
+                time
+            )
 
 
-    scaled_amount = scaler.transform(
-        pd.DataFrame(
-            {"Amount": [amount]}
-        )
-    )[0][0]
+            # Scale Amount
+            amount_df = pd.DataFrame(
+                {"Amount": [amount]}
+            )
+
+            scaled_amount = scaler.transform(
+                amount_df
+            )[0][0]
 
 
-    input_data["Amount"] = scaled_amount
+            input_data["Amount"] = scaled_amount
 
 
-    input_data = input_data[
-        X.columns
-    ]
+            # Arrange columns correctly
+            input_data = input_data[
+                X.columns
+            ]
 
 
-    prediction = model.predict(
-        input_data
-    )[0]
+            # Prediction
+            prediction = model.predict(
+                input_data
+            )[0]
 
 
-    probability = model.predict_proba(
-        input_data
-    )[0][1]
+            probability = model.predict_proba(
+                input_data
+            )[0][1]
 
 
-    st.divider()
+            st.divider()
 
-    st.subheader("🔎 Prediction Result")
+            st.subheader("🔎 Prediction Result")
 
 
-    if prediction == 1:
+            if prediction == 1:
+
+                st.error(
+                    "🚨 FRAUDULENT TRANSACTION DETECTED"
+                )
+
+                st.warning(
+                    "This transaction should be reviewed carefully."
+                )
+
+            else:
+
+                st.success(
+                    "✅ LEGITIMATE TRANSACTION"
+                )
+
+                st.info(
+                    "The model does not identify this transaction as fraudulent."
+                )
+
+
+            st.metric(
+                "Fraud Probability",
+                f"{probability * 100:.2f}%"
+            )
+
+
+    except ValueError:
 
         st.error(
-            "🚨 FRAUDULENT TRANSACTION DETECTED"
+            "❌ Please enter valid numbers for Time and Amount."
         )
-
-        st.warning(
-            "This transaction should be reviewed carefully."
-        )
-
-    else:
-
-        st.success(
-            "✅ LEGITIMATE TRANSACTION"
-        )
-
-        st.info(
-            "The model does not identify this transaction as fraudulent."
-        )
-
-
-    st.metric(
-        "Fraud Probability",
-        f"{probability * 100:.2f}%"
-    )
 
 
 # --------------------------------------------------
